@@ -1,6 +1,7 @@
 import { useCallback } from "react";
 import { GroupRepository } from "../../../../data/repositories/GroupRepository";
 import { Group } from "../../../../domain/entities/Group";
+import { CreateGroupUseCase } from "../../../../domain/usecases/groups/CreateGroupUseCase";
 import { DeleteGroupUseCase } from "../../../../domain/usecases/groups/DeleteGroupUseCase";
 import { GetAllGroupsUseCase } from "../../../../domain/usecases/groups/GetAllGroupsUseCase";
 import { GetGroupUseCase } from "../../../../domain/usecases/groups/GetGroupUseCase";
@@ -8,6 +9,11 @@ import { UpdateGroupUseCase } from "../../../../domain/usecases/groups/UpdateGro
 
 export const useGroups = () => {
   const groupRepository = new GroupRepository();
+
+  const createGroup = useCallback(async (name: string): Promise<Group> => {
+    const useCase = new CreateGroupUseCase(groupRepository);
+    return await useCase.execute(name);
+  }, []);
 
   const getGroups = useCallback(
     async (
@@ -40,6 +46,7 @@ export const useGroups = () => {
   }, []);
 
   return {
+    createGroup,
     getGroups,
     getGroup,
     updateGroup,

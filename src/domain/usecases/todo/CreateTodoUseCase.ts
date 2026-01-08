@@ -9,7 +9,7 @@ export class CreateTodoUseCase {
   }
 
   async execute(
-    data: Omit<ToDo, "id" | "createdAt" | "updatedAt">,
+    data: Omit<ToDo, "id" | "created_at" | "updated_at" | "group">,
     groupId?: number
   ): Promise<ToDo> {
     return await this.todoRepository.createTodo(data, groupId);

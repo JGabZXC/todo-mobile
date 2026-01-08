@@ -18,13 +18,13 @@ export class LocalDatabase {
 
     CREATE TABLE IF NOT EXISTS todos (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
-        group INTEGER,
+        group_id INTEGER,
         title TEXT NOT NULL,
         description TEXT,
         completed INTEGER NOT NULL DEFAULT 0,
         created_at INTEGER NOT NULL,
         updated_at INTEGER NOT NULL,
-        FOREIGN KEY (group) REFERENCES groups(id) ON DELETE SET NULL
+        FOREIGN KEY (group_id) REFERENCES groups(id) ON DELETE SET NULL
     );
 
     CREATE TABLE IF NOT EXISTS subtodos (

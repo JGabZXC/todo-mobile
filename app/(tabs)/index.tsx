@@ -1,13 +1,5 @@
-import { Text, useColorScheme, View } from "react-native";
+import { HomeScreen } from "@/src/presentation/features/groups/screens/HomeScreen";
 
 export default function Index() {
-  const colorScheme = useColorScheme() ?? "light";
-  const isDark = colorScheme === "dark";
-  return (
-    <View style={{}}>
-      <Text style={{ color: isDark ? "white" : "black" }}>
-        Try editing me! 🎉
-      </Text>
-    </View>
-  );
+  return <HomeScreen />;
 }

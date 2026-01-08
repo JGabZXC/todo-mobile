@@ -19,7 +19,7 @@ export class GroupRepository implements IGroupRepository {
       params.push(`%${search}%`);
     }
 
-    query += " ORDER BY created_at DESC LIMIT ? OFFSET ?";
+    query += " ORDER BY created_at ASC LIMIT ? OFFSET ?";
     params.push(limit, offset);
 
     const rows = await db.getAllAsync<Group>(query, params);

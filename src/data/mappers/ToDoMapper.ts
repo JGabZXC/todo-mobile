@@ -5,7 +5,7 @@ export class ToDoMapper {
   static toDomain(dto: ToDoDTO): ToDo {
     return {
       id: dto.id,
-      group: dto.group,
+      group: dto.group_id,
       title: dto.title,
       description: dto.description,
       completed: dto.completed,
@@ -17,7 +17,7 @@ export class ToDoMapper {
   static toDTO(domain: ToDo): ToDoDTO {
     return {
       id: domain.id,
-      group: domain.group,
+      group_id: domain.group,
       title: domain.title,
       description: domain.description,
       completed: domain.completed,

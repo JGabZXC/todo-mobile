@@ -1,52 +1,63 @@
 import { ToDo } from "@/src/domain/entities/ToDo";
 import { ITodoRepository } from "@/src/domain/repositories/ITodoRepository";
 import * as SQLite from "expo-sqlite";
+import { ToDoMapper } from "../mappers/ToDoMapper";
+import { ToDoDTO } from "../models/ToDoDTO";
 
 export class ToDoRepository implements ITodoRepository {
   private readonly dbName = "todo_app.db";
 
   async getAllTodos(limit: number = 20, offset: number = 0): Promise<ToDo[]> {
     const db = await SQLite.openDatabaseAsync(this.dbName);
-    const rows = await db.getAllAsync<ToDo>(
+    const rows = await db.getAllAsync<ToDoDTO>(
       "SELECT * FROM todos ORDER BY created_at DESC LIMIT ? OFFSET ?",
       [limit, offset]
     );
 
-    return rows;
+    return rows.map(ToDoMapper.toDomain);
   }
 
   async getAllTodosByGroup(
-    groupId: number,
+    groupId: number | null,
     limit: number = 20,
     offset: number = 0
   ): Promise<ToDo[]> {
     const db = await SQLite.openDatabaseAsync(this.dbName);
-    const rows = await db.getAllAsync<ToDo>(
-      "SELECT * FROM todos WHERE group = ? ORDER BY created_at DESC LIMIT ? OFFSET ?",
+
+    if (groupId === null) {
+      const rows = await db.getAllAsync<ToDoDTO>(
+        "SELECT * FROM todos WHERE group_id IS NULL ORDER BY created_at DESC LIMIT ? OFFSET ?",
+        [limit, offset]
+      );
+      return rows.map(ToDoMapper.toDomain);
+    }
+
+    const rows = await db.getAllAsync<ToDoDTO>(
+      "SELECT * FROM todos WHERE group_id = ? ORDER BY created_at DESC LIMIT ? OFFSET ?",
       [groupId, limit, offset]
     );
 
-    return rows;
+    return rows.map(ToDoMapper.toDomain);
   }
 
   async getTodoById(id: string): Promise<ToDo | null> {
     const db = await SQLite.openDatabaseAsync(this.dbName);
-    const row = await db.getFirstAsync<ToDo>(
+    const row = await db.getFirstAsync<ToDoDTO>(
       "SELECT * FROM todos WHERE id = ?",
       [id]
     );
 
-    return row || null;
+    return row ? ToDoMapper.toDomain(row) : null;
   }
 
   async createTodo(
-    data: Omit<ToDo, "id" | "createdAt" | "updatedAt">,
+    data: Omit<ToDo, "id" | "created_at" | "updated_at" | "group">,
     groupId?: number
   ): Promise<ToDo> {
     const db = await SQLite.openDatabaseAsync(this.dbName);
     const now = new Date();
     const result = await db.runAsync(
-      `INSERT INTO todos (group, title, description, completed, created_at, updated_at)
+      `INSERT INTO todos (group_id, title, description, completed, created_at, updated_at)
        VALUES (?, ?, ?, ?, ?, ?)`,
       [
         groupId || null,
@@ -75,7 +86,7 @@ export class ToDoRepository implements ITodoRepository {
 
     await db.runAsync(
       `UPDATE todos SET
-        group = COALESCE(?, group),
+        group_id = COALESCE(?, group_id),
         title = COALESCE(?, title),
         description = COALESCE(?, description),
         completed = COALESCE(?, completed),

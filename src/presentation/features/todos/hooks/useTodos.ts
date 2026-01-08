@@ -21,7 +21,7 @@ export const useTodos = () => {
 
   const getTodosByGroup = useCallback(
     async (
-      groupId: number,
+      groupId: number | null,
       limit?: number,
       offset?: number
     ): Promise<ToDo[]> => {
@@ -38,7 +38,7 @@ export const useTodos = () => {
 
   const createTodo = useCallback(
     async (
-      data: Omit<ToDo, "id" | "createdAt" | "updatedAt">,
+      data: Omit<ToDo, "id" | "created_at" | "updated_at" | "group">,
       groupId?: number
     ): Promise<ToDo> => {
       const useCase = new CreateTodoUseCase(todoRepository);

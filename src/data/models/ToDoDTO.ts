@@ -1,6 +1,6 @@
 export interface ToDoDTO {
   id: number;
-  group: number | null;
+  group_id: number | null;
   title: string;
   description?: string;
   completed: 0 | 1;

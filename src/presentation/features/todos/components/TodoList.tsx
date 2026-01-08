@@ -1,0 +1,57 @@
+import { useTheme } from "@react-navigation/native";
+import React from "react";
+import { ActivityIndicator, FlatList, StyleSheet, View } from "react-native";
+import { ToDo } from "../../../../domain/entities/ToDo";
+import { TodoItem } from "./TodoItem";
+
+interface TodoListProps {
+  todos: ToDo[];
+  onPressTodo: (id: number) => void;
+  onToggleComplete: (id: number) => void;
+  onEndReached?: () => void;
+  isFetchingMore?: boolean;
+}
+
+export const TodoList: React.FC<TodoListProps> = ({
+  todos,
+  onPressTodo,
+  onToggleComplete,
+  onEndReached,
+  isFetchingMore,
+}) => {
+  const { colors } = useTheme();
+
+  return (
+    <FlatList
+      data={todos}
+      keyExtractor={(item) => item.id.toString()}
+      renderItem={({ item }) => (
+        <TodoItem
+          todo={item}
+          onPress={onPressTodo}
+          onToggleComplete={onToggleComplete}
+        />
+      )}
+      contentContainerStyle={styles.listContent}
+      onEndReached={onEndReached}
+      onEndReachedThreshold={0.5}
+      ListFooterComponent={
+        isFetchingMore ? (
+          <View style={styles.footerLoader}>
+            <ActivityIndicator size="small" color={colors.primary} />
+          </View>
+        ) : null
+      }
+    />
+  );
+};
+
+const styles = StyleSheet.create({
+  listContent: {
+    paddingBottom: 20,
+  },
+  footerLoader: {
+    paddingVertical: 16,
+    alignItems: "center",
+  },
+});

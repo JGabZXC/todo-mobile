@@ -9,7 +9,7 @@ export class GetTodosByGroupUseCase {
   }
 
   async execute(
-    groupId: number,
+    groupId: number | null,
     limit?: number,
     offset?: number
   ): Promise<ToDo[]> {
