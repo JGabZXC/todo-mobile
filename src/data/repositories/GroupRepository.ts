@@ -1,6 +1,8 @@
 import { Group } from "@/src/domain/entities/Group";
 import { IGroupRepository } from "@/src/domain/repositories/IGroupRepository";
 import * as SQLite from "expo-sqlite";
+import { GroupMapper } from "../mappers/GroupMapper";
+import { GroupDTO } from "../models/GroupDTO";
 
 export class GroupRepository implements IGroupRepository {
   private readonly dbName = "todo_app.db";
@@ -11,7 +13,7 @@ export class GroupRepository implements IGroupRepository {
   ): Promise<Group[]> {
     const db = await SQLite.openDatabaseAsync(this.dbName);
 
-    let query = "SELECT id, name FROM groups";
+    let query = "SELECT * FROM groups";
     const params: (string | number)[] = [];
 
     if (search) {
@@ -22,19 +24,19 @@ export class GroupRepository implements IGroupRepository {
     query += " ORDER BY created_at ASC LIMIT ? OFFSET ?";
     params.push(limit, offset);
 
-    const rows = await db.getAllAsync<Group>(query, params);
+    const rows = await db.getAllAsync<GroupDTO>(query, params);
 
-    return rows;
+    return rows.map(GroupMapper.toDomain);
   }
 
   async getGroupById(id: number): Promise<Group | null> {
     const db = await SQLite.openDatabaseAsync(this.dbName);
-    const row = await db.getFirstAsync<Group>(
-      "SELECT id, name FROM groups WHERE id = ?",
+    const row = await db.getFirstAsync<GroupDTO>(
+      "SELECT * FROM groups WHERE id = ?",
       [id]
     );
 
-    return row || null;
+    return row ? GroupMapper.toDomain(row) : null;
   }
 
   async createGroup(name: string): Promise<Group> {
@@ -59,7 +61,7 @@ export class GroupRepository implements IGroupRepository {
     const now = Date.now();
 
     await db.runAsync(
-      `UPDATE groups SET name = ?, updated_at = ? WHERE id = ?`,
+      "UPDATE groups SET name = ?, updated_at = ? WHERE id = ?",
       [name, now, id]
     );
 

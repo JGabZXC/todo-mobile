@@ -1,5 +1,5 @@
-import { router } from "expo-router";
-import React, { useCallback, useEffect, useState } from "react";
+import { router, useFocusEffect } from "expo-router";
+import React, { useCallback, useMemo, useState } from "react";
 import { ActivityIndicator, Text, View } from "react-native";
 import { Group } from "../../../../domain/entities/Group";
 import { useDebounce } from "../../../shared/hooks/useDebounce";
@@ -10,7 +10,7 @@ import { useGroups } from "../hooks/useGroups";
 
 const ITEMS_PER_PAGE = 20;
 
-export const HomeScreen = () => {
+export function HomeScreen() {
   const { getGroups } = useGroups();
   const { getTodosByGroup } = useTodos();
   const [loading, setLoading] = useState(true);
@@ -68,12 +68,14 @@ export const HomeScreen = () => {
     [getGroups, debouncedSearch, hasMore, isFetchingMore, groups.length]
   );
 
-  useEffect(() => {
-    loadGroups(true);
-    if (!debouncedSearch) {
-      checkAnonymous();
-    }
-  }, [debouncedSearch]);
+  useFocusEffect(
+    useCallback(() => {
+      loadGroups(true);
+      if (!debouncedSearch) {
+        checkAnonymous();
+      }
+    }, [debouncedSearch, loadGroups, checkAnonymous])
+  );
 
   const handleRefresh = useCallback(() => {
     loadGroups(true);
@@ -85,7 +87,7 @@ export const HomeScreen = () => {
   }, [loadGroups]);
 
   // Combined data for display
-  const displayData = React.useMemo(() => {
+  const displayData = useMemo(() => {
     const data: (Group | { id: number; name: string; isAnonymous: boolean })[] =
       [...groups];
     if (hasAnonymousTasks && !debouncedSearch) {
@@ -137,4 +139,4 @@ export const HomeScreen = () => {
       />
     </View>
   );
-};
+}

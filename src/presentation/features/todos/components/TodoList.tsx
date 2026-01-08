@@ -12,13 +12,13 @@ interface TodoListProps {
   isFetchingMore?: boolean;
 }
 
-export const TodoList: React.FC<TodoListProps> = ({
+export function TodoList({
   todos,
   onPressTodo,
   onToggleComplete,
   onEndReached,
   isFetchingMore,
-}) => {
+}: TodoListProps) {
   const { colors } = useTheme();
 
   return (
@@ -44,7 +44,7 @@ export const TodoList: React.FC<TodoListProps> = ({
       }
     />
   );
-};
+}
 
 const styles = StyleSheet.create({
   listContent: {

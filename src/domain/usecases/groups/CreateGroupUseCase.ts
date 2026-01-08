@@ -7,8 +7,8 @@ export class CreateGroupUseCase {
   async execute(name: string): Promise<Group> {
     if (!name.trim()) throw new Error("Group name cannot be empty");
 
-    if (name.length > 10)
-      throw new Error("Group name cannot exceed 50 characters");
+    if (name.length > 30)
+      throw new Error("Group name cannot exceed 30 characters");
 
     return await this.groupRepository.createGroup(name);
   }

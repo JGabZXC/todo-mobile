@@ -11,9 +11,12 @@ import { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
+  Modal,
   StyleSheet,
   Text,
+  TextInput,
   TouchableOpacity,
+  TouchableWithoutFeedback,
   View,
 } from "react-native";
 
@@ -24,7 +27,7 @@ export default function GroupDetailScreen() {
   const numericId = parseInt(id!, 10);
   const isAnonymous = numericId === -1;
 
-  const { getGroup, deleteGroup } = useGroups();
+  const { getGroup, deleteGroup, updateGroup } = useGroups();
   const { getTodosByGroup, updateTodo } = useTodos();
   const { colors } = useTheme();
 
@@ -36,6 +39,10 @@ export default function GroupDetailScreen() {
   const [hasMore, setHasMore] = useState(true);
   const [isFetchingMore, setIsFetchingMore] = useState(false);
   const LIMIT = 100;
+
+  const [settingsVisible, setSettingsVisible] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editName, setEditName] = useState("");
 
   const fetchData = useCallback(
     async (loadMore = false) => {
@@ -104,7 +111,35 @@ export default function GroupDetailScreen() {
   const handleRefresh = () => fetchData(false);
   const handleLoadMore = () => fetchData(true);
 
+  const handleEditPress = () => {
+    setEditName(group?.name || "");
+    setSettingsVisible(false);
+    setIsEditing(true);
+  };
+
+  const handleSaveEdit = async () => {
+    if (!group || !editName.trim()) return;
+
+    const previousName = group.name;
+    const newName = editName.trim();
+
+    // Optimistic update
+    setGroup({ ...group, name: newName });
+    setIsEditing(false);
+
+    try {
+      await updateGroup(group.id, newName);
+      // No need to fetch data, we already updated the UI
+    } catch (error) {
+      console.error(error);
+      Alert.alert("Error", "Failed to update group name");
+      // Revert optimization
+      setGroup({ ...group, name: previousName });
+    }
+  };
+
   const handleDeleteGroup = async () => {
+    setSettingsVisible(false);
     Alert.alert(
       "Delete Group",
       "Are you sure you want to delete this group and all its tasks?",
@@ -179,13 +214,17 @@ export default function GroupDetailScreen() {
       <Stack.Screen
         options={{
           headerShown: true,
-          title: group?.name || "Group",
+          headerTransparent: false,
+          headerTitle: group?.name || "Group",
+          headerStyle: {
+            backgroundColor: colors.card,
+          },
+          headerShadowVisible: true,
           headerTintColor: colors.text,
-          headerStyle: { backgroundColor: colors.card },
           headerRight: () =>
             !isAnonymous ? (
-              <TouchableOpacity onPress={handleDeleteGroup}>
-                <AntDesign name="delete" size={24} color="red" />
+              <TouchableOpacity onPress={() => setSettingsVisible(true)}>
+                <AntDesign name="setting" size={24} color={colors.text} />
               </TouchableOpacity>
             ) : null,
         }}
@@ -248,6 +287,90 @@ export default function GroupDetailScreen() {
           />
         </>
       )}
+
+      {/* Settings Modal */}
+      <Modal
+        visible={settingsVisible}
+        transparent
+        animationType="fade"
+        statusBarTranslucent
+        onRequestClose={() => setSettingsVisible(false)}
+      >
+        <TouchableWithoutFeedback onPress={() => setSettingsVisible(false)}>
+          <View style={styles.modalOverlay}>
+            <View
+              style={[styles.modalContent, { backgroundColor: colors.card }]}
+            >
+              <TouchableOpacity
+                style={styles.modalOption}
+                onPress={handleEditPress}
+              >
+                <AntDesign name="edit" size={24} color={colors.text} />
+                <Text style={[styles.modalOptionText, { color: colors.text }]}>
+                  Edit Group Name
+                </Text>
+              </TouchableOpacity>
+              <View
+                style={[styles.separator, { backgroundColor: colors.border }]}
+              />
+              <TouchableOpacity
+                style={styles.modalOption}
+                onPress={handleDeleteGroup}
+              >
+                <AntDesign name="delete" size={24} color="red" />
+                <Text style={[styles.modalOptionText, { color: "red" }]}>
+                  Delete Group
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </TouchableWithoutFeedback>
+      </Modal>
+
+      {/* Edit Group Modal */}
+      <Modal
+        visible={isEditing}
+        transparent
+        animationType="slide"
+        statusBarTranslucent
+        onRequestClose={() => setIsEditing(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View
+            style={[styles.editModalContent, { backgroundColor: colors.card }]}
+          >
+            <Text style={[styles.modalTitle, { color: colors.text }]}>
+              Edit Group Name
+            </Text>
+            <TextInput
+              style={[
+                styles.input,
+                { color: colors.text, borderColor: colors.border },
+              ]}
+              value={editName}
+              onChangeText={setEditName}
+              autoFocus
+            />
+            <View style={styles.modalButtons}>
+              <TouchableOpacity
+                onPress={() => setIsEditing(false)}
+                style={styles.modalButton}
+              >
+                <Text style={{ color: colors.text }}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={handleSaveEdit}
+                style={[
+                  styles.modalButton,
+                  { backgroundColor: colors.primary },
+                ]}
+              >
+                <Text style={{ color: "white" }}>Save</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -278,5 +401,58 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  modalContent: {
+    width: "80%",
+    borderRadius: 12,
+    padding: 16,
+    elevation: 5,
+  },
+  modalOption: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 12,
+  },
+  modalOptionText: {
+    fontSize: 16,
+    marginLeft: 12,
+  },
+  separator: {
+    height: StyleSheet.hairlineWidth,
+    marginVertical: 4,
+  },
+  editModalContent: {
+    width: "80%",
+    borderRadius: 12,
+    padding: 24,
+    elevation: 5,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: "bold",
+    marginBottom: 16,
+  },
+  input: {
+    borderWidth: 1,
+    borderRadius: 8,
+    padding: 12,
+    fontSize: 16,
+    marginBottom: 20,
+  },
+  modalButtons: {
+    flexDirection: "row",
+    justifyContent: "flex-end",
+  },
+  modalButton: {
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderRadius: 8,
+    marginLeft: 10,
   },
 });

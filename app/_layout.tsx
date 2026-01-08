@@ -50,6 +50,7 @@ export default function RootLayout() {
             styles.container,
             { backgroundColor: activeTheme.colors.background },
           ]}
+          // edges={["top"]}
         >
           <StatusBar style="auto" />
           <Stack

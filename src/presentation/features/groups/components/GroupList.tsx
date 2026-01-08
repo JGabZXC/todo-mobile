@@ -22,14 +22,14 @@ interface GroupListProps {
   onSearch?: (query: string) => void;
 }
 
-export const GroupList: React.FC<GroupListProps> = ({
+export function GroupList({
   groups,
   onPressGroup,
   onRefresh,
   onEndReached,
   isFetchingMore,
   onSearch,
-}) => {
+}: GroupListProps) {
   const { colors } = useTheme();
 
   return (
@@ -43,7 +43,7 @@ export const GroupList: React.FC<GroupListProps> = ({
             ]}
             placeholder="Search groups..."
             placeholderTextColor={colors.text}
-            onChangeText={onSearch} // Consider debouncing this in parent
+            onChangeText={onSearch}
           />
         </View>
       )}
@@ -88,7 +88,7 @@ export const GroupList: React.FC<GroupListProps> = ({
       <CreateGroupButton onGroupCreated={onRefresh} />
     </View>
   );
-};
+}
 
 const styles = StyleSheet.create({
   container: {

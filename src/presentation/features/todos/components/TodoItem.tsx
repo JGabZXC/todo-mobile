@@ -10,11 +10,7 @@ interface TodoItemProps {
   onToggleComplete: (id: number) => void;
 }
 
-export const TodoItem: React.FC<TodoItemProps> = ({
-  todo,
-  onPress,
-  onToggleComplete,
-}) => {
+export function TodoItem({ todo, onPress, onToggleComplete }: TodoItemProps) {
   const { colors } = useTheme();
 
   return (
@@ -57,7 +53,7 @@ export const TodoItem: React.FC<TodoItemProps> = ({
       </TouchableOpacity>
     </View>
   );
-};
+}
 
 const styles = StyleSheet.create({
   container: {

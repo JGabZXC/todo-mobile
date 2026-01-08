@@ -47,6 +47,7 @@ export function CreateTodoButton({
         animationType="fade"
         transparent={true}
         visible={modalVisible}
+        statusBarTranslucent
         onRequestClose={() => {
           setModalVisible(!modalVisible);
         }}
