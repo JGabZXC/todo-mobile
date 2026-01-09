@@ -1,139 +1,199 @@
 import { AntDesign } from "@expo/vector-icons";
 import { useTheme } from "@react-navigation/native";
-import React from "react";
+import { useRouter } from "expo-router";
+import { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
-  StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Group } from "../../../../domain/entities/Group";
-import { CreateGroupButton } from "./CreateGroupButton";
+import { useDebounce } from "../../../shared/hooks/useDebounce";
+import { ErrorHandler } from "../../../shared/utils/ErrorHandler";
+import { useGroups } from "../hooks/useGroups";
+import CreateGroupButton from "./CreateGroupButton";
+import { styles } from "./GroupListStyles";
 
-interface GroupListProps {
-  groups: (Group | { id: number; name: string; isAnonymous: boolean })[];
-  onPressGroup: (groupId: number) => void;
-  onRefresh?: () => void;
-  onEndReached?: () => void;
-  isFetchingMore?: boolean;
-  onSearch?: (query: string) => void;
-}
+const PAGE_SIZE = 20;
 
-export function GroupList({
-  groups,
-  onPressGroup,
-  onRefresh,
-  onEndReached,
-  isFetchingMore,
-  onSearch,
-}: GroupListProps) {
+export default function GroupList() {
   const { colors } = useTheme();
+  const router = useRouter();
+  const { getGroups, deleteGroup } = useGroups();
+  const insets = useSafeAreaInsets();
+
+  const [groups, setGroups] = useState<Group[]>([]);
+  const [searchResults, setSearchResults] = useState<Group[]>([]);
+  const [searchQuery, setSearchQuery] = useState("");
+  const debouncedSearchQuery = useDebounce(searchQuery, 500);
+
+  const [loading, setLoading] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
+  const [offset, setOffset] = useState(0);
+
+  const loadGroups = async (reset = false) => {
+    if (loading || (!hasMore && !reset)) return;
+
+    try {
+      setLoading(true);
+      const currentOffset = reset ? 0 : offset;
+      const result = await getGroups(PAGE_SIZE, currentOffset);
+
+      if (reset) {
+        setGroups(result);
+        setOffset(PAGE_SIZE);
+      } else {
+        setGroups((prev) => [...prev, ...result]);
+        setOffset((prev) => prev + PAGE_SIZE);
+      }
+
+      if (result.length < PAGE_SIZE) {
+        setHasMore(false);
+      } else {
+        setHasMore(true);
+      }
+    } catch (error) {
+      ErrorHandler.handle(error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    const handleSearch = async () => {
+      if (!debouncedSearchQuery.trim()) {
+        setSearchResults([]);
+        return;
+      }
+
+      const localMatches = groups.filter((g) =>
+        g.name.toLowerCase().includes(debouncedSearchQuery.toLowerCase())
+      );
+
+      if (localMatches.length > 0) {
+        setSearchResults(localMatches);
+      } else {
+        try {
+          setLoading(true);
+          const result = await getGroups(
+            undefined,
+            undefined,
+            debouncedSearchQuery
+          );
+          setSearchResults(result);
+        } catch (error) {
+          ErrorHandler.handle(error);
+        } finally {
+          setLoading(false);
+        }
+      }
+    };
+
+    handleSearch();
+  }, [debouncedSearchQuery]);
+
+  useEffect(() => {
+    loadGroups(true);
+  }, []);
+
+  const handleDeleteGroup = async (id: number) => {
+    try {
+      await deleteGroup(id);
+      setGroups((prev) => prev.filter((g) => g.id !== id));
+      setSearchResults((prev) => prev.filter((g) => g.id !== id));
+    } catch (error) {
+      ErrorHandler.handle(error);
+    }
+  };
+
+  const onEndReached = () => {
+    if (!searchQuery && hasMore) {
+      loadGroups();
+    }
+  };
+
+  const displayGroups = searchQuery ? searchResults : groups;
+
+  const renderItem = ({ item }: { item: Group }) => (
+    <TouchableOpacity
+      style={[styles.groupItem, { backgroundColor: colors.card }]}
+      onPress={() =>
+        router.push({
+          pathname: "/group/[id]",
+          params: { id: item.id.toString() },
+        })
+      }
+    >
+      <Text style={[styles.groupName, { color: colors.text }]}>
+        {item.name}
+      </Text>
+      <TouchableOpacity onPress={() => handleDeleteGroup(item.id)}>
+        <AntDesign name="delete" size={20} color={colors.notification} />
+      </TouchableOpacity>
+    </TouchableOpacity>
+  );
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.background }]}>
-      {onSearch && (
-        <View style={styles.searchContainer}>
-          <TextInput
-            style={[
-              styles.searchInput,
-              { color: colors.text, borderColor: colors.border },
-            ]}
-            placeholder="Search groups..."
-            placeholderTextColor={colors.text}
-            onChangeText={onSearch}
-          />
-        </View>
+    <View style={styles.container}>
+      {groups.length > 0 && (
+        <Text style={[styles.header, { color: colors.text }]}>
+          Your Groups {__DEV__ && groups.length}
+        </Text>
       )}
-      <FlatList
-        data={groups}
-        contentContainerStyle={styles.listContent}
-        keyExtractor={(item) => item.id.toString()}
-        renderItem={({ item }) => (
-          <TouchableOpacity
-            onPress={() => onPressGroup(item.id)}
-            style={styles.itemContainer}
-            activeOpacity={0.7}
-          >
-            <View style={styles.textContainer}>
-              <Text style={[styles.itemText, { color: colors.text }]}>
-                {item.name}
-              </Text>
-              {(item as any).isAnonymous && (
-                <Text style={styles.subText}>Tasks without a group</Text>
-              )}
-            </View>
-            <AntDesign name="right" size={16} color={colors.border} />
-          </TouchableOpacity>
-        )}
-        ItemSeparatorComponent={() => (
-          <View
-            style={[styles.separator, { backgroundColor: colors.border }]}
-          />
-        )}
-        onRefresh={onRefresh}
-        refreshing={false}
-        onEndReached={onEndReached}
-        onEndReachedThreshold={0.5}
-        ListFooterComponent={
-          isFetchingMore ? (
-            <View style={styles.footerLoader}>
-              <ActivityIndicator size="small" color={colors.primary} />
-            </View>
-          ) : null
-        }
+
+      <TextInput
+        style={[
+          styles.searchInput,
+          {
+            backgroundColor: colors.card,
+            color: colors.text,
+            borderColor: colors.border,
+          },
+        ]}
+        placeholder="Search groups..."
+        placeholderTextColor={colors.text}
+        value={searchQuery}
+        onChangeText={setSearchQuery}
       />
-      <CreateGroupButton onGroupCreated={onRefresh} />
+
+      <View
+        style={{
+          paddingBottom: insets.bottom - 20,
+          flex: 1,
+        }}
+      >
+        <FlatList
+          data={displayGroups}
+          keyExtractor={(item) => item.id.toString()}
+          renderItem={renderItem}
+          onEndReached={onEndReached}
+          onEndReachedThreshold={0.5}
+          ListFooterComponent={
+            loading && displayGroups.length > 0 ? (
+              <View style={{ padding: 20 }}>
+                <ActivityIndicator size="small" color={colors.primary} />
+              </View>
+            ) : null
+          }
+          ListEmptyComponent={
+            !loading ? (
+              <View style={styles.emptyContainer}>
+                <Text style={[styles.emptyText, { color: colors.text }]}>
+                  {searchQuery
+                    ? "No groups found"
+                    : "There's no group, create one"}
+                </Text>
+              </View>
+            ) : null
+          }
+        />
+      </View>
+
+      <CreateGroupButton onGroupCreated={() => loadGroups(true)} />
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  searchContainer: {
-    padding: 16,
-    paddingBottom: 8,
-  },
-  searchInput: {
-    borderWidth: 1,
-    borderRadius: 8,
-    padding: 12,
-    fontSize: 16,
-  },
-  listContent: {
-    paddingVertical: 8,
-    paddingBottom: 80, // Accommodate floating button
-  },
-  itemContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingVertical: 20,
-    paddingHorizontal: 24,
-  },
-  textContainer: {
-    flex: 1,
-  },
-  itemText: {
-    fontSize: 17,
-    fontWeight: "500",
-    letterSpacing: -0.4,
-  },
-  subText: {
-    fontSize: 13,
-    color: "#888",
-    marginTop: 4,
-  },
-  separator: {
-    height: StyleSheet.hairlineWidth,
-    marginHorizontal: 24,
-  },
-  footerLoader: {
-    paddingVertical: 16,
-    alignItems: "center",
-  },
-});

@@ -5,15 +5,8 @@ import {
   ThemeProvider,
 } from "@react-navigation/native";
 import { Stack } from "expo-router";
-import { StatusBar } from "expo-status-bar";
 import { useEffect, useState } from "react";
-import {
-  ActivityIndicator,
-  StyleSheet,
-  useColorScheme,
-  View,
-} from "react-native";
-import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
+import { ActivityIndicator, useColorScheme, View } from "react-native";
 
 export default function RootLayout() {
   const colorScheme = useColorScheme() ?? "light";
@@ -44,31 +37,10 @@ export default function RootLayout() {
 
   return (
     <ThemeProvider value={activeTheme}>
-      <SafeAreaProvider>
-        <SafeAreaView
-          style={[
-            styles.container,
-            { backgroundColor: activeTheme.colors.background },
-          ]}
-          // edges={["top"]}
-        >
-          <StatusBar style="auto" />
-          <Stack
-            screenOptions={{
-              contentStyle: { backgroundColor: activeTheme.colors.background },
-              headerShown: false,
-            }}
-          >
-            <Stack.Screen name="index" />
-          </Stack>
-        </SafeAreaView>
-      </SafeAreaProvider>
+      <Stack>
+        <Stack.Screen name="index" options={{ headerShown: false }} />
+        <Stack.Screen name="group/[id]" options={{ title: "Group Details" }} />
+      </Stack>
     </ThemeProvider>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-});

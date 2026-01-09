@@ -1,8 +1,9 @@
 import { MaterialIcons } from "@expo/vector-icons";
 import { useTheme } from "@react-navigation/native";
 import React from "react";
-import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { Text, TouchableOpacity, View } from "react-native";
 import { ToDo } from "../../../../domain/entities/ToDo";
+import { styles } from "./TodoItemStyles";
 
 interface TodoItemProps {
   todo: ToDo;
@@ -14,12 +15,7 @@ export function TodoItem({ todo, onPress, onToggleComplete }: TodoItemProps) {
   const { colors } = useTheme();
 
   return (
-    <View
-      style={[
-        styles.container,
-        { backgroundColor: colors.card, borderBottomColor: colors.border },
-      ]}
-    >
+    <View style={[styles.container, { borderBottomColor: colors.border }]}>
       <TouchableOpacity
         style={styles.checkbox}
         onPress={() => onToggleComplete(todo.id)}
@@ -36,50 +32,30 @@ export function TodoItem({ todo, onPress, onToggleComplete }: TodoItemProps) {
       </TouchableOpacity>
 
       <TouchableOpacity style={styles.content} onPress={() => onPress(todo.id)}>
-        <Text
-          style={[
-            styles.title,
-            { color: colors.text },
-            todo.completed === 1 && styles.completedText,
-          ]}
-        >
-          {todo.title}
-        </Text>
+        <View style={styles.titleContainer}>
+          <Text
+            style={[
+              styles.title,
+              { color: colors.text },
+              todo.completed === 1 && styles.completedText,
+            ]}
+          >
+            {todo.title}
+          </Text>
+          {todo.total_subtodos !== undefined && todo.total_subtodos > 0 && (
+            <Text style={styles.subTodoCount}>
+              ({todo.completed_subtodos}/{todo.total_subtodos})
+            </Text>
+          )}
+        </View>
         {todo.description && (
           <Text style={styles.description} numberOfLines={1}>
-            {todo.description}
+            {todo.description.length > 50
+              ? todo.description.slice(0, 50) + "..."
+              : todo.description}
           </Text>
         )}
       </TouchableOpacity>
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-  },
-  checkbox: {
-    padding: 8,
-  },
-  content: {
-    flex: 1,
-    marginLeft: 8,
-  },
-  title: {
-    fontSize: 16,
-  },
-  completedText: {
-    textDecorationLine: "line-through",
-    opacity: 0.5,
-  },
-  description: {
-    fontSize: 12,
-    color: "#888",
-    marginTop: 2,
-  },
-});

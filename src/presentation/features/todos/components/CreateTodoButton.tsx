@@ -2,14 +2,18 @@ import { AntDesign } from "@expo/vector-icons";
 import { useTheme } from "@react-navigation/native";
 import { useState } from "react";
 import {
+  Alert,
+  KeyboardAvoidingView,
   Modal,
-  StyleSheet,
+  Platform,
   Text,
   TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTodos } from "../hooks/useTodos";
+import { styles } from "./CreateTodoButtonStyles";
 
 interface CreateTodoButtonProps {
   groupId: number | null;
@@ -21,22 +25,34 @@ export function CreateTodoButton({
   onTodoCreated,
 }: CreateTodoButtonProps) {
   const { colors } = useTheme();
+  const insets = useSafeAreaInsets();
   const [modalVisible, setModalVisible] = useState(false);
-  const [todoTitle, setTodoTitle] = useState("");
+  const [data, setData] = useState({ title: "", description: "" });
   const { createTodo } = useTodos();
 
+  const dynamicBottom = insets.bottom > 0 ? insets.bottom + 20 : 40;
+
   const handleCreate = async () => {
-    if (!todoTitle.trim()) return;
+    if (!data.title.trim()) return;
+    if (data.title.length > 30) {
+      Alert.alert("Error", "Title cannot exceed 30 characters.");
+      return;
+    }
+    if (data.description.length > 50) {
+      Alert.alert("Error", "Description cannot exceed 50 characters.");
+      return;
+    }
 
     await createTodo(
       {
-        title: todoTitle,
+        title: data.title,
+        description: data.description,
         completed: 0,
       },
       groupId === -1 ? undefined : groupId ?? undefined
     );
 
-    setTodoTitle("");
+    setData({ title: "", description: "" });
     setModalVisible(false);
     onTodoCreated?.();
   };
@@ -49,10 +65,13 @@ export function CreateTodoButton({
         visible={modalVisible}
         statusBarTranslucent
         onRequestClose={() => {
-          setModalVisible(!modalVisible);
+          setModalVisible(false);
         }}
       >
-        <View style={styles.centeredView}>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+          style={styles.centeredView}
+        >
           <View style={[styles.modalView, { backgroundColor: colors.card }]}>
             <Text style={[styles.modalText, { color: colors.text }]}>
               Create New Task
@@ -67,10 +86,31 @@ export function CreateTodoButton({
                 },
               ]}
               placeholder="Task Title"
-              placeholderTextColor={colors.text + "80"}
-              value={todoTitle}
-              onChangeText={setTodoTitle}
+              placeholderTextColor="gray"
+              value={data.title}
+              onChangeText={(text) =>
+                setData((prev) => ({ ...prev, title: text }))
+              }
               autoFocus={true}
+            />
+
+            <TextInput
+              maxLength={50}
+              style={[
+                styles.input,
+                {
+                  color: colors.text,
+                  borderColor: colors.border,
+                  backgroundColor: colors.background,
+                  height: "auto",
+                },
+              ]}
+              placeholder="Task Description"
+              placeholderTextColor="gray"
+              value={data.description}
+              onChangeText={(text) =>
+                setData((prev) => ({ ...prev, description: text }))
+              }
             />
             <View style={styles.buttonContainer}>
               <TouchableOpacity
@@ -90,11 +130,15 @@ export function CreateTodoButton({
               </TouchableOpacity>
             </View>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
 
       <TouchableOpacity
-        style={[styles.fab, { backgroundColor: colors.primary }]}
+        activeOpacity={0.7}
+        style={[
+          styles.fab,
+          { backgroundColor: colors.primary, bottom: dynamicBottom },
+        ]}
         onPress={() => setModalVisible(true)}
       >
         <AntDesign name="plus" size={24} color="white" />
@@ -102,86 +146,3 @@ export function CreateTodoButton({
     </>
   );
 }
-
-const styles = StyleSheet.create({
-  centeredView: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: "rgba(0,0,0,0.5)",
-  },
-  modalView: {
-    margin: 20,
-    backgroundColor: "white",
-    borderRadius: 20,
-    padding: 35,
-    alignItems: "center",
-    shadowColor: "#000",
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
-    elevation: 5,
-    width: "80%",
-  },
-  button: {
-    borderRadius: 10,
-    padding: 10,
-    elevation: 2,
-    minWidth: 80,
-    marginTop: 15,
-  },
-  buttonCreate: {
-    backgroundColor: "#2196F3",
-    marginLeft: 10,
-  },
-  buttonCancel: {
-    backgroundColor: "#f44336",
-  },
-  textStyle: {
-    color: "white",
-    fontWeight: "bold",
-    textAlign: "center",
-  },
-  modalText: {
-    marginBottom: 15,
-    textAlign: "center",
-    fontSize: 18,
-    fontWeight: "bold",
-  },
-  input: {
-    height: 40,
-    width: "100%",
-    borderColor: "gray",
-    borderWidth: 1,
-    borderRadius: 5,
-    paddingHorizontal: 10,
-    marginBottom: 10,
-  },
-  buttonContainer: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-  },
-  fab: {
-    position: "absolute",
-    width: 56,
-    height: 56,
-    alignItems: "center",
-    justifyContent: "center",
-    right: 20,
-    bottom: 20,
-    backgroundColor: "#2196F3",
-    borderRadius: 28,
-    elevation: 8,
-    shadowColor: "#000",
-    shadowOffset: {
-      width: 0,
-      height: 4,
-    },
-    shadowOpacity: 0.3,
-    shadowRadius: 4.65,
-    zIndex: 100, // Make sure it's on top
-  },
-});

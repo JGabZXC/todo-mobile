@@ -2,9 +2,10 @@ import { Group } from "@/src/domain/entities/Group";
 import { ToDo } from "@/src/domain/entities/ToDo";
 import { useGroups } from "@/src/presentation/features/groups/hooks/useGroups";
 import { CreateTodoButton } from "@/src/presentation/features/todos/components/CreateTodoButton";
+import { TodoDetailModal } from "@/src/presentation/features/todos/components/TodoDetailModal";
 import { TodoList } from "@/src/presentation/features/todos/components/TodoList";
 import { useTodos } from "@/src/presentation/features/todos/hooks/useTodos";
-import { AntDesign } from "@expo/vector-icons";
+import { AntDesign, Entypo, Feather } from "@expo/vector-icons";
 import { useTheme } from "@react-navigation/native";
 import { Stack, router, useLocalSearchParams } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
@@ -43,6 +44,10 @@ export default function GroupDetailScreen() {
   const [settingsVisible, setSettingsVisible] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [editName, setEditName] = useState("");
+
+  // Todo Detail Modal
+  const [selectedTodo, setSelectedTodo] = useState<ToDo | null>(null);
+  const [detailModalVisible, setDetailModalVisible] = useState(false);
 
   const fetchData = useCallback(
     async (loadMore = false) => {
@@ -167,22 +172,39 @@ export default function GroupDetailScreen() {
     if (!todo) return;
 
     const newCompleted = todo.completed === 1 ? 0 : 1;
+    const newDoneAt = newCompleted === 1 ? new Date() : null;
 
-    // Optimistic update
     setTodos((prev) =>
-      prev.map((t) => (t.id === todoId ? { ...t, completed: newCompleted } : t))
+      prev.map((t) =>
+        t.id === todoId
+          ? { ...t, completed: newCompleted, done_at: newDoneAt }
+          : t
+      )
     );
 
     try {
-      await updateTodo(todoId.toString(), { completed: newCompleted });
+      await updateTodo(todoId.toString(), {
+        completed: newCompleted,
+        done_at: newDoneAt,
+      });
     } catch (e) {
       console.error(e);
       // Revert on error
       setTodos((prev) =>
         prev.map((t) =>
-          t.id === todoId ? { ...t, completed: todo.completed } : t
+          t.id === todoId
+            ? { ...t, completed: todo.completed, done_at: todo.done_at }
+            : t
         )
       );
+    }
+  };
+
+  const handlePressTodo = (id: number) => {
+    const todo = todos.find((t) => t.id === id);
+    if (todo) {
+      setSelectedTodo(todo);
+      setDetailModalVisible(true);
     }
   };
 
@@ -224,7 +246,11 @@ export default function GroupDetailScreen() {
           headerRight: () =>
             !isAnonymous ? (
               <TouchableOpacity onPress={() => setSettingsVisible(true)}>
-                <AntDesign name="setting" size={24} color={colors.text} />
+                <Entypo
+                  name="dots-three-vertical"
+                  size={24}
+                  color={colors.text}
+                />
               </TouchableOpacity>
             ) : null,
         }}
@@ -276,7 +302,7 @@ export default function GroupDetailScreen() {
         <>
           <TodoList
             todos={filteredTodos}
-            onPressTodo={(id) => console.log("Pressed todo", id)}
+            onPressTodo={handlePressTodo}
             onToggleComplete={handleToggleComplete}
             onEndReached={handleLoadMore}
             isFetchingMore={isFetchingMore}
@@ -287,6 +313,45 @@ export default function GroupDetailScreen() {
           />
         </>
       )}
+
+      <TodoDetailModal
+        visible={detailModalVisible}
+        todo={selectedTodo}
+        onClose={() => setDetailModalVisible(false)}
+        onTodoUpdated={(updates) => {
+          if (updates && selectedTodo) {
+            // Optimistic update for sub-todo counts
+            setTodos((prev) =>
+              prev.map((t) =>
+                t.id === selectedTodo.id
+                  ? {
+                      ...t,
+                      total_subtodos:
+                        updates.total_subtodos ?? t.total_subtodos,
+                      completed_subtodos:
+                        updates.completed_subtodos ?? t.completed_subtodos,
+                    }
+                  : t
+              )
+            );
+            // Also update the selectedTodo state to keep it in sync locally if needed
+            setSelectedTodo((prev) =>
+              prev
+                ? {
+                    ...prev,
+                    total_subtodos:
+                      updates.total_subtodos ?? prev.total_subtodos,
+                    completed_subtodos:
+                      updates.completed_subtodos ?? prev.completed_subtodos,
+                  }
+                : null
+            );
+          } else {
+            // Fallback for other updates (like title change or delete)
+            fetchData();
+          }
+        }}
+      />
 
       {/* Settings Modal */}
       <Modal
@@ -317,7 +382,7 @@ export default function GroupDetailScreen() {
                 style={styles.modalOption}
                 onPress={handleDeleteGroup}
               >
-                <AntDesign name="delete" size={24} color="red" />
+                <Feather name="trash-2" size={24} color="red" />
                 <Text style={[styles.modalOptionText, { color: "red" }]}>
                   Delete Group
                 </Text>
@@ -381,7 +446,7 @@ const styles = StyleSheet.create({
   },
   filterContainer: {
     flexDirection: "row",
-    padding: 10,
+    padding: 20,
     borderBottomWidth: StyleSheet.hairlineWidth,
   },
   filterButton: {

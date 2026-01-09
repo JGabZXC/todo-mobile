@@ -10,7 +10,11 @@ export class ToDoRepository implements ITodoRepository {
   async getAllTodos(limit: number = 20, offset: number = 0): Promise<ToDo[]> {
     const db = await SQLite.openDatabaseAsync(this.dbName);
     const rows = await db.getAllAsync<ToDoDTO>(
-      "SELECT * FROM todos ORDER BY created_at DESC LIMIT ? OFFSET ?",
+      `SELECT t.*, 
+        (SELECT COUNT(*) FROM subtodos st WHERE st.todo = t.id) as total_subtodos, 
+        (SELECT COUNT(*) FROM subtodos st WHERE st.todo = t.id AND st.completed = 1) as completed_subtodos 
+       FROM todos t 
+       ORDER BY t.created_at DESC LIMIT ? OFFSET ?`,
       [limit, offset]
     );
 
@@ -26,14 +30,24 @@ export class ToDoRepository implements ITodoRepository {
 
     if (groupId === null) {
       const rows = await db.getAllAsync<ToDoDTO>(
-        "SELECT * FROM todos WHERE group_id IS NULL ORDER BY created_at DESC LIMIT ? OFFSET ?",
+        `SELECT t.*,
+          (SELECT COUNT(*) FROM subtodos st WHERE st.todo = t.id) as total_subtodos,
+          (SELECT COUNT(*) FROM subtodos st WHERE st.todo = t.id AND st.completed = 1) as completed_subtodos
+         FROM todos t
+         WHERE t.group_id IS NULL 
+         ORDER BY t.created_at DESC LIMIT ? OFFSET ?`,
         [limit, offset]
       );
       return rows.map(ToDoMapper.toDomain);
     }
 
     const rows = await db.getAllAsync<ToDoDTO>(
-      "SELECT * FROM todos WHERE group_id = ? ORDER BY created_at DESC LIMIT ? OFFSET ?",
+      `SELECT t.*,
+        (SELECT COUNT(*) FROM subtodos st WHERE st.todo = t.id) as total_subtodos,
+        (SELECT COUNT(*) FROM subtodos st WHERE st.todo = t.id AND st.completed = 1) as completed_subtodos
+       FROM todos t
+       WHERE t.group_id = ? 
+       ORDER BY t.created_at DESC LIMIT ? OFFSET ?`,
       [groupId, limit, offset]
     );
 
@@ -43,7 +57,11 @@ export class ToDoRepository implements ITodoRepository {
   async getTodoById(id: string): Promise<ToDo | null> {
     const db = await SQLite.openDatabaseAsync(this.dbName);
     const row = await db.getFirstAsync<ToDoDTO>(
-      "SELECT * FROM todos WHERE id = ?",
+      `SELECT t.*,
+        (SELECT COUNT(*) FROM subtodos st WHERE st.todo = t.id) as total_subtodos,
+        (SELECT COUNT(*) FROM subtodos st WHERE st.todo = t.id AND st.completed = 1) as completed_subtodos
+       FROM todos t
+       WHERE t.id = ?`,
       [id]
     );
 
@@ -57,13 +75,14 @@ export class ToDoRepository implements ITodoRepository {
     const db = await SQLite.openDatabaseAsync(this.dbName);
     const now = new Date();
     const result = await db.runAsync(
-      `INSERT INTO todos (group_id, title, description, completed, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO todos (group_id, title, description, completed, done_at, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
       [
         groupId || null,
         data.title,
         data.description || null,
         data.completed,
+        data.done_at ? new Date(data.done_at).getTime() : null,
         now.getTime(),
         now.getTime(),
       ]
@@ -75,6 +94,7 @@ export class ToDoRepository implements ITodoRepository {
       title: data.title,
       description: data.description,
       completed: data.completed,
+      done_at: data.done_at,
       created_at: now,
       updated_at: now,
     };
@@ -84,22 +104,45 @@ export class ToDoRepository implements ITodoRepository {
     const db = await SQLite.openDatabaseAsync(this.dbName);
     const now = Date.now();
 
+    const fields: string[] = [];
+    const params: (string | number | null)[] = [];
+
+    if (data.group !== undefined) {
+      fields.push("group_id = ?");
+      params.push(data.group);
+    }
+    if (data.title !== undefined) {
+      fields.push("title = ?");
+      params.push(data.title);
+    }
+    if (data.description !== undefined) {
+      fields.push("description = ?");
+      params.push(data.description);
+    }
+    if (data.completed !== undefined) {
+      fields.push("completed = ?");
+      params.push(data.completed);
+    }
+    if (data.done_at !== undefined) {
+      fields.push("done_at = ?");
+      if (data.done_at === null) {
+        params.push(null);
+      } else if (data.done_at instanceof Date) {
+        params.push(data.done_at.getTime());
+      } else {
+        // Fallback if somehow it's a number or string representation
+        params.push(new Date(data.done_at).getTime());
+      }
+    }
+
+    fields.push("updated_at = ?");
+    params.push(now);
+
+    params.push(id);
+
     await db.runAsync(
-      `UPDATE todos SET
-        group_id = COALESCE(?, group_id),
-        title = COALESCE(?, title),
-        description = COALESCE(?, description),
-        completed = COALESCE(?, completed),
-        updated_at = ?
-      WHERE id = ?`,
-      [
-        data.group ?? null,
-        data.title ?? null,
-        data.description ?? null,
-        data.completed ?? null,
-        now,
-        id,
-      ]
+      `UPDATE todos SET ${fields.join(", ")} WHERE id = ?`,
+      params
     );
 
     return this.getTodoById(id);

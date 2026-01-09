@@ -1,63 +1,87 @@
 import { AntDesign } from "@expo/vector-icons";
+import { useTheme } from "@react-navigation/native";
 import { useState } from "react";
-import {
-  Modal,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
-} from "react-native";
+import { Modal, Text, TextInput, TouchableOpacity, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { ErrorHandler } from "../../../shared/utils/ErrorHandler";
 import { useGroups } from "../hooks/useGroups";
+import { styles } from "./CreateGroupButtonStyles";
 
 interface CreateGroupButtonProps {
   onGroupCreated?: () => void;
 }
 
-export function CreateGroupButton({ onGroupCreated }: CreateGroupButtonProps) {
-  const [modalVisible, setModalVisible] = useState(false);
+export default function CreateGroupButton({
+  onGroupCreated,
+}: CreateGroupButtonProps) {
+  const { colors } = useTheme();
+  const insets = useSafeAreaInsets();
+  const [loading, setLoading] = useState(false);
+  const [open, setIsOpen] = useState(false);
   const [groupName, setGroupName] = useState("");
+  const dynamicBottom = insets.bottom > 0 ? insets.bottom + 20 : 40;
+
   const { createGroup } = useGroups();
 
-  const handleCreate = async () => {
-    if (!groupName.trim()) return;
-    await createGroup(groupName);
-    setGroupName("");
-    setModalVisible(false);
-    onGroupCreated?.();
-  };
+  async function handleCreateGroup() {
+    try {
+      setLoading(true);
+      await createGroup(groupName);
+      setIsOpen(false);
+      setGroupName("");
+      onGroupCreated?.();
+    } catch (error) {
+      ErrorHandler.handle(error);
+    } finally {
+      setLoading(false);
+    }
+  }
 
   return (
     <>
       <Modal
         animationType="fade"
         transparent={true}
-        visible={modalVisible}
+        visible={open}
         onRequestClose={() => {
-          setModalVisible(!modalVisible);
+          setIsOpen(false);
+          setGroupName("");
         }}
       >
-        <View style={styles.centeredView}>
-          <View style={styles.modalView}>
-            <Text style={styles.modalText}>Create New Group</Text>
+        <View style={styles.container}>
+          <View style={[styles.view, { backgroundColor: colors.card }]}>
+            <Text style={[styles.text, { color: colors.text }]}>
+              Create Group
+            </Text>
+
             <TextInput
-              style={styles.input}
+              style={[
+                styles.input,
+                { borderColor: colors.border, color: colors.text },
+              ]}
               placeholder="Group Name"
+              placeholderTextColor="gray"
               value={groupName}
               onChangeText={setGroupName}
             />
-            <View style={styles.buttonContainer}>
+
+            <View style={styles.buttonsContainer}>
               <TouchableOpacity
-                style={[styles.button, styles.buttonCancel]}
-                onPress={() => setModalVisible(false)}
+                style={[styles.button, { backgroundColor: "#db0e0eff" }]}
+                disabled={loading}
+                onPress={() => setIsOpen(false)}
               >
-                <Text style={styles.textStyle}>Cancel</Text>
+                <Text style={{ color: "#fff" }}>Close</Text>
               </TouchableOpacity>
+
               <TouchableOpacity
-                style={[styles.button, styles.buttonCreate]}
-                onPress={handleCreate}
+                style={[styles.button, { backgroundColor: colors.primary }]}
+                onPress={handleCreateGroup}
+                disabled={loading || !groupName.trim()}
               >
-                <Text style={styles.textStyle}>Create</Text>
+                <Text style={{ color: "#fff" }}>
+                  {loading ? "Creating..." : "Create"}
+                </Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -65,94 +89,15 @@ export function CreateGroupButton({ onGroupCreated }: CreateGroupButtonProps) {
       </Modal>
 
       <TouchableOpacity
-        style={styles.fab}
-        onPress={() => setModalVisible(true)}
+        activeOpacity={0.7}
+        style={[
+          styles.fab,
+          { backgroundColor: colors.primary, bottom: dynamicBottom },
+        ]}
+        onPress={() => setIsOpen(true)}
       >
         <AntDesign name="plus" size={24} color="white" />
       </TouchableOpacity>
     </>
   );
 }
-
-const styles = StyleSheet.create({
-  centeredView: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: "rgba(0,0,0,0.5)",
-  },
-  modalView: {
-    margin: 20,
-    backgroundColor: "white",
-    borderRadius: 20,
-    padding: 35,
-    alignItems: "center",
-    shadowColor: "#000",
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
-    elevation: 5,
-    width: "80%",
-  },
-  button: {
-    borderRadius: 10,
-    padding: 10,
-    elevation: 2,
-    minWidth: 80,
-    marginTop: 15,
-  },
-  buttonCreate: {
-    backgroundColor: "#2196F3",
-    marginLeft: 10,
-  },
-  buttonCancel: {
-    backgroundColor: "#f44336",
-  },
-  textStyle: {
-    color: "white",
-    fontWeight: "bold",
-    textAlign: "center",
-  },
-  modalText: {
-    marginBottom: 15,
-    textAlign: "center",
-    fontSize: 18,
-    fontWeight: "bold",
-  },
-  input: {
-    height: 40,
-    width: "100%",
-    borderColor: "gray",
-    borderWidth: 1,
-    borderRadius: 5,
-    paddingHorizontal: 10,
-    marginBottom: 10,
-  },
-  buttonContainer: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-  },
-  fab: {
-    position: "absolute",
-    width: 56,
-    height: 56,
-    alignItems: "center",
-    justifyContent: "center",
-    right: 20,
-    bottom: 20,
-    backgroundColor: "#2196F3",
-    borderRadius: 28,
-    elevation: 8,
-    shadowColor: "#000",
-    shadowOffset: {
-      width: 0,
-      height: 4,
-    },
-    shadowOpacity: 0.3,
-    shadowRadius: 4.65,
-    zIndex: 100, // Make sure it's on top
-  },
-});

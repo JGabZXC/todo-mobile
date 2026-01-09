@@ -22,9 +22,10 @@ export class LocalDatabase {
         title TEXT NOT NULL,
         description TEXT,
         completed INTEGER NOT NULL DEFAULT 0,
+        done_at INTEGER,
         created_at INTEGER NOT NULL,
         updated_at INTEGER NOT NULL,
-        FOREIGN KEY (group_id) REFERENCES groups(id) ON DELETE SET NULL
+        FOREIGN KEY (group_id) REFERENCES groups(id) ON DELETE CASCADE
     );
 
     CREATE TABLE IF NOT EXISTS subtodos (
@@ -38,6 +39,22 @@ export class LocalDatabase {
     );
     `);
 
+    // Migration for missing done_at column (for existing databases)
+    try {
+      await db.execAsync("ALTER TABLE todos ADD COLUMN done_at INTEGER;");
+    } catch (error) {
+      // Column likely already exists
+    }
+
     return db;
+  }
+
+  static async clear() {
+    const db = await SQLite.openDatabaseAsync(this.dbName);
+    await db.execAsync("PRAGMA foreign_keys = OFF;");
+    await db.runAsync("DELETE FROM subtodos");
+    await db.runAsync("DELETE FROM todos");
+    await db.runAsync("DELETE FROM groups");
+    await db.execAsync("PRAGMA foreign_keys = ON;");
   }
 }

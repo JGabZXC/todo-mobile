@@ -12,6 +12,11 @@ export class CreateSubTodoUseCase {
     todoId: number,
     data: Omit<SubToDo, "id" | "todo" | "createdAt" | "updatedAt">
   ): Promise<SubToDo> {
+    const existingSubTodos =
+      await this.subTodoRepository.getAllSubToDosByTodoId(todoId);
+    if (existingSubTodos.length >= 20) {
+      throw new Error("You can only have 20 sub todos");
+    }
     return await this.subTodoRepository.createSubToDo(todoId, data);
   }
 }
