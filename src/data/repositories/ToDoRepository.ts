@@ -18,6 +18,8 @@ export class ToDoRepository implements ITodoRepository {
       [limit, offset]
     );
 
+    db.closeSync();
+
     return rows.map(ToDoMapper.toDomain);
   }
 
@@ -38,6 +40,9 @@ export class ToDoRepository implements ITodoRepository {
          ORDER BY t.created_at DESC LIMIT ? OFFSET ?`,
         [limit, offset]
       );
+
+      db.closeSync();
+
       return rows.map(ToDoMapper.toDomain);
     }
 
@@ -50,6 +55,8 @@ export class ToDoRepository implements ITodoRepository {
        ORDER BY t.created_at DESC LIMIT ? OFFSET ?`,
       [groupId, limit, offset]
     );
+
+    db.closeSync();
 
     return rows.map(ToDoMapper.toDomain);
   }
@@ -64,6 +71,8 @@ export class ToDoRepository implements ITodoRepository {
        WHERE t.id = ?`,
       [id]
     );
+
+    db.closeSync();
 
     return row ? ToDoMapper.toDomain(row) : null;
   }
@@ -87,6 +96,8 @@ export class ToDoRepository implements ITodoRepository {
         now.getTime(),
       ]
     );
+
+    db.closeSync();
 
     return {
       id: result.lastInsertRowId as number,
@@ -145,12 +156,16 @@ export class ToDoRepository implements ITodoRepository {
       params
     );
 
+    db.closeSync();
+
     return this.getTodoById(id);
   }
 
   async deleteTodo(id: string): Promise<boolean> {
     const db = await SQLite.openDatabaseAsync(this.dbName);
     await db.execAsync("PRAGMA foreign_keys = ON;");
+
+    db.closeSync();
 
     const result = await db.runAsync("DELETE FROM todos WHERE id = ?", [id]);
     return result.changes > 0;

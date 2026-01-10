@@ -1,7 +1,14 @@
 import { AntDesign } from "@expo/vector-icons";
 import { useTheme } from "@react-navigation/native";
 import { useState } from "react";
-import { Alert, Modal, Text, TouchableOpacity, View } from "react-native";
+import {
+  Alert,
+  DeviceEventEmitter,
+  Modal,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
 import { LocalDatabase } from "../../../data/sources/LocalDatabase";
 import { styles } from "../../features/groups/components/CreateGroupButtonStyles";
 
@@ -22,6 +29,7 @@ export default function DebugModal() {
             try {
               await LocalDatabase.clear();
               Alert.alert("Success", "Database cleared.");
+              DeviceEventEmitter.emit("DATABASE_CLEARED");
               setIsOpen(false);
             } catch (error) {
               console.error(error);

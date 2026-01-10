@@ -15,6 +15,8 @@ export class SubToDoRepository implements ISubToDoRepository {
       [limit, offset]
     );
 
+    db.closeSync();
+
     return rows;
   }
 
@@ -29,6 +31,8 @@ export class SubToDoRepository implements ISubToDoRepository {
       [todoId, limit, offset]
     );
 
+    db.closeSync();
+
     return rows;
   }
 
@@ -38,6 +42,8 @@ export class SubToDoRepository implements ISubToDoRepository {
       "SELECT * FROM subtodos WHERE id = ?",
       [id]
     );
+
+    db.closeSync();
 
     return row || null;
   }
@@ -53,6 +59,8 @@ export class SubToDoRepository implements ISubToDoRepository {
        VALUES (?, ?, ?, ?, ?)`,
       [todoId, data.title, data.completed, now.getTime(), now.getTime()]
     );
+
+    db.closeSync();
 
     return {
       id: result.lastInsertRowId,
@@ -76,12 +84,16 @@ export class SubToDoRepository implements ISubToDoRepository {
       [data.title ?? null, data.completed ?? null, now, id]
     );
 
+    db.closeSync();
+
     return await this.getSubToDoById(id);
   }
 
   async deleteSubToDo(id: string): Promise<boolean> {
     const db = await SQLite.openDatabaseAsync(this.dbName);
     const result = await db.runAsync(`DELETE FROM subtodos WHERE id = ?`, [id]);
+
+    db.closeSync();
 
     return result.changes > 0;
   }

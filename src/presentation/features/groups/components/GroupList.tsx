@@ -1,10 +1,12 @@
 import { AntDesign } from "@expo/vector-icons";
 import { useTheme } from "@react-navigation/native";
-import { useRouter } from "expo-router";
-import { useEffect, useState } from "react";
+import { useFocusEffect, useRouter } from "expo-router";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
+  DeviceEventEmitter,
   FlatList,
+  RefreshControl,
   Text,
   TextInput,
   TouchableOpacity,
@@ -32,36 +34,100 @@ export default function GroupList() {
   const debouncedSearchQuery = useDebounce(searchQuery, 500);
 
   const [loading, setLoading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   const [hasMore, setHasMore] = useState(true);
   const [offset, setOffset] = useState(0);
 
-  const loadGroups = async (reset = false) => {
-    if (loading || (!hasMore && !reset)) return;
+  const groupsRef = useRef(groups);
+  groupsRef.current = groups;
+
+  const loadGroups = useCallback(
+    async (reset = false) => {
+      if (loading && !reset) return;
+
+      try {
+        setLoading(true);
+        const currentOffset = reset ? 0 : offset;
+        const result = await getGroups(PAGE_SIZE, currentOffset);
+
+        if (reset) {
+          setGroups(result);
+          setOffset(PAGE_SIZE);
+          setHasMore(result.length >= PAGE_SIZE);
+        } else {
+          if (result.length > 0) {
+            setGroups((prev) => [...prev, ...result]);
+            setOffset((prev) => prev + PAGE_SIZE);
+          }
+          setHasMore(result.length >= PAGE_SIZE);
+        }
+      } catch (error) {
+        ErrorHandler.handle(error);
+      } finally {
+        setLoading(false);
+      }
+    },
+    [loading, offset, getGroups]
+  );
+
+  const reloadCurrentData = useCallback(async () => {
+    // If searching, refresh search results
+    if (debouncedSearchQuery.trim()) {
+      try {
+        const result = await getGroups(
+          undefined,
+          undefined,
+          debouncedSearchQuery
+        );
+        setSearchResults(result);
+      } catch (error) {
+        ErrorHandler.handle(error);
+      }
+      return;
+    }
+
+    // If no groups loaded yet, do initial load
+    if (groupsRef.current.length === 0) {
+      loadGroups(true);
+      return;
+    }
 
     try {
       setLoading(true);
-      const currentOffset = reset ? 0 : offset;
-      const result = await getGroups(PAGE_SIZE, currentOffset);
-
-      if (reset) {
-        setGroups(result);
-        setOffset(PAGE_SIZE);
-      } else {
-        setGroups((prev) => [...prev, ...result]);
-        setOffset((prev) => prev + PAGE_SIZE);
-      }
-
-      if (result.length < PAGE_SIZE) {
-        setHasMore(false);
-      } else {
-        setHasMore(true);
-      }
+      const count = Math.max(groupsRef.current.length, PAGE_SIZE);
+      const result = await getGroups(count, 0);
+      setGroups(result);
     } catch (error) {
       ErrorHandler.handle(error);
     } finally {
       setLoading(false);
     }
-  };
+  }, [debouncedSearchQuery, getGroups, loadGroups]);
+
+  useFocusEffect(
+    useCallback(() => {
+      reloadCurrentData();
+    }, [reloadCurrentData])
+  );
+
+  useEffect(() => {
+    const subscription = DeviceEventEmitter.addListener(
+      "DATABASE_CLEARED",
+      () => {
+        loadGroups(true);
+      }
+    );
+
+    return () => {
+      subscription.remove();
+    };
+  }, [loadGroups]);
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await loadGroups(true);
+    setRefreshing(false);
+  }, [loadGroups]);
 
   useEffect(() => {
     const handleSearch = async () => {
@@ -76,7 +142,9 @@ export default function GroupList() {
 
       if (localMatches.length > 0) {
         setSearchResults(localMatches);
-      } else {
+      }
+
+      if (localMatches.length === 0) {
         try {
           setLoading(true);
           const result = await getGroups(
@@ -94,11 +162,7 @@ export default function GroupList() {
     };
 
     handleSearch();
-  }, [debouncedSearchQuery]);
-
-  useEffect(() => {
-    loadGroups(true);
-  }, []);
+  }, [debouncedSearchQuery, groups]);
 
   const handleDeleteGroup = async (id: number) => {
     try {
@@ -172,6 +236,9 @@ export default function GroupList() {
           renderItem={renderItem}
           onEndReached={onEndReached}
           onEndReachedThreshold={0.5}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+          }
           ListFooterComponent={
             loading && displayGroups.length > 0 ? (
               <View style={{ padding: 20 }}>

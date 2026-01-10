@@ -26,6 +26,8 @@ export class GroupRepository implements IGroupRepository {
 
     const rows = await db.getAllAsync<GroupDTO>(query, params);
 
+    db.closeSync();
+
     return rows.map(GroupMapper.toDomain);
   }
 
@@ -35,6 +37,8 @@ export class GroupRepository implements IGroupRepository {
       "SELECT * FROM groups WHERE id = ?",
       [id]
     );
+
+    db.closeSync();
 
     return row ? GroupMapper.toDomain(row) : null;
   }
@@ -65,6 +69,8 @@ export class GroupRepository implements IGroupRepository {
       [name, now, id]
     );
 
+    db.closeSync();
+
     return await this.getGroupById(id);
   }
 
@@ -73,6 +79,7 @@ export class GroupRepository implements IGroupRepository {
     await db.execAsync("PRAGMA foreign_keys = ON;");
 
     const result = await db.runAsync(`DELETE FROM groups WHERE id = ?`, [id]);
+    db.closeSync();
     return result.changes > 0;
   }
 }
